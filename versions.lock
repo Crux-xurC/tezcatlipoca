@@ -1,0 +1,10 @@
+# The combination tezcatlipoca bundles: one row a component, its repository
+# and the commit. build.sh checks each out at that commit. Change a row only
+# after the whole has been checked together (README.md, "Updating").
+#
+# name                    repository                                            commit
+tezcatl_without_nix       git@github.com:Crux-xurC/tezcatl_without_nix.git      14398c6e59742774971a7ed00889764c2bb0092b
+xipe_totec_without_nix    git@github.com:Crux-xurC/xipe_totec_without_nix.git   2a7899a9942298fd7ad95086a0ac1a81f861afff
+poca                      git@github.com:Crux-xurC/poca.git                     01f0f481f378716eb236155434a1e92268dd423e
+embody                    git@github.com:Crux-xurC/embody.git                   1e9becdecbee358b1b631e4b9d469f30c7ec0fdc
+emacs-vent                git@github.com:Crux-xurC/emacs-vent.git               2261120149ef17aeb27b80749b4ef617daddabc7

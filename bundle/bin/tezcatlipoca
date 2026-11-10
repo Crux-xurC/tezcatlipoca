@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# tezcatlipoca -- Tezcatl in Poca, without Nix.
+#
+#   tezcatlipoca setup [--fs-root <dir>] [--emacs <command> | --no-emacs]
+#        write Poca's box rows for tezcatl, Xipe Totec and (unless --no-emacs)
+#        Emacs with emacs-vent; run again to change them
+#   tezcatlipoca start [<poca's arguments>]     open Poca
+#   tezcatlipoca check                          what this machine lacks
+#   tezcatlipoca version                        the versions bundled (BUILD)
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+relay="$here/tezcatl/_build/prod/rel/tezcatl_relay/bin/tezcatl_relay"
+
+case "${1:-}" in
+  setup)
+    shift
+    # Elixir's JSON from the bundled release: nothing else is needed to edit box.json
+    exec "$relay" eval "Code.eval_file(\"$here/lib/setup.exs\")" "$here" "$@"
+    ;;
+  start)
+    shift
+    exec "$here/poca/poca" "$@"
+    ;;
+  check)
+    status=0
+    for f in "$here/poca/poca" "$here/poca/libcef.so" \
+             "$here"/tezcatl/_build/prod/rel/tezcatl_relay/erts-*/bin/beam.smp \
+             "$here"/tezcatl/_build/prod/rel/tezcatl_relay/lib/erlexec-*/priv/*/exec-port \
+             "$here"/tezcatl/_build/prod/rel/tezcatl_relay/lib/crypto-*/priv/lib/crypto.so; do
+      missing="$(ldd "$f" 2>/dev/null | awk '/not found/ {print $1}' | sort -u | tr '\n' ' ')"
+      if [ -n "$missing" ]; then
+        echo "missing for ${f#$here/}: $missing"
+        status=1
+      fi
+    done
+    for c in rg emacs; do
+      command -v "$c" >/dev/null 2>&1 || echo "not on PATH (optional): $c"
+    done
+    [ "$status" = 0 ] && echo "tezcatlipoca check: the system libraries are there"
+    exit "$status"
+    ;;
+  version)
+    cat "$here/BUILD"
+    ;;
+  *)
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    [ -z "${1:-}" ] || exit 2
+    ;;
+esac
