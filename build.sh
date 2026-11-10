@@ -53,6 +53,8 @@ for n in "${order[@]}"; do
     echo "build.sh: clone $n"
     git clone --quiet "${url[$n]}" "$src"
   fi
+  # the lock's URL, also for a checkout made from an earlier lock
+  git -C "$src" remote set-url origin "${url[$n]}"
   git -C "$src" fetch --quiet origin
   git -C "$src" checkout --quiet --detach "${commit[$n]}"
   # anything not committed, except the builds kept between runs
@@ -96,13 +98,76 @@ done
 mkdir -p "$stage/poca"
 cp -a "$work/poca-build/Release/." "$stage/poca/"
 git -C "$work/src/poca" archive "${commit[poca]}" LICENSE README.md | tar -x -C "$stage/poca"
-# CEF's license and Chromium's credits (the third-party notices), from the CEF distribution
-cef="$(ls -d "$POCA_VENDOR"/cef_binary_* | head -1)"
+# CEF's license and Chromium's credits (the third-party notices), from the CEF
+# distribution Poca's CMakeLists.txt builds with (vendor/ may hold others)
+cef="$POCA_VENDOR/$(grep -o 'vendor/cef_binary_[^"]*' "$work/src/poca/CMakeLists.txt" | head -1 | sed 's|^vendor/||')"
+[ -f "$cef/LICENSE.txt" ] || { echo "build.sh: no CEF license at $cef" >&2; exit 1; }
 cp "$cef/LICENSE.txt" "$stage/poca/LICENSE-CEF.txt"
 cp "$cef/CREDITS.html" "$stage/poca/CREDITS-Chromium.html"
 strip --strip-debug "$stage/poca/libcef.so" "$stage/poca/libvk_swiftshader.so" "$stage/poca/poca"
 cp -a "$root/bundle/." "$stage/"
 cp "$root/LICENSE" "$stage/LICENSE"
+
+# --- licenses of what the releases carry -----------------------------------------
+# Erlang/OTP's runtime and Elixir's standard library (Apache-2.0, with the
+# licenses of the third-party code in them), from the tags of the versions built
+# with, and each Hex package in a release, from the package itself.
+echo "build.sh: licenses"
+otp_version="$(erl -noshell -eval 'io:put_chars(string:trim(element(2, file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"]))))), halt().')"
+elixir_version="$(elixir --short-version)"
+fetch_licenses() { # fetch_licenses <repository> <tag> <dir in licenses/> <files...>
+  local src="$work/licenses-src/$3"
+  if [ ! -d "$src/.git" ]; then
+    rm -rf "$src"
+    git clone --quiet --depth 1 --filter=blob:none --no-checkout --branch "$2" "$1" "$src" \
+      2> >(grep -v "is not a commit" >&2)   # an annotated tag, as OTP's are
+    git -C "$src" sparse-checkout set --no-cone "${@:4}"
+    git -C "$src" checkout --quiet
+  fi
+  mkdir -p "$stage/licenses/$3"
+  (cd "$src" && cp -r "${@:4}" "$stage/licenses/$3/")
+}
+fetch_licenses https://github.com/erlang/otp.git "OTP-$otp_version" "erlang-otp-$otp_version" LICENSE.txt LICENSES
+fetch_licenses https://github.com/elixir-lang/elixir.git "v$elixir_version" "elixir-$elixir_version" LICENSE LICENSES
+hex_rows=""
+for app in "$stage"/tezcatl/_build/prod/rel/*/lib/*/ "$stage"/xipe_totec/_build/prod/rel/*/lib/*/; do
+  app="$(basename "$app")"            # <name>-<version>
+  n="${app%-*}"
+  for p in tezcatl_without_nix xipe_totec_without_nix; do
+    meta="$work/src/$p/deps/$n/hex_metadata.config"
+    [ -f "$meta" ] || continue
+    [ -d "$stage/licenses/hex/$app" ] && break
+    mkdir -p "$stage/licenses/hex/$app"
+    find "$work/src/$p/deps/$n" -maxdepth 1 -type f \( -iname 'LICENSE*' -o -iname 'NOTICE*' -o -iname 'COPYING*' \) \
+      -exec cp {} "$stage/licenses/hex/$app/" \;
+    spdx="$(grep -o '{<<"licenses">>,\[[^]]*\]}' "$meta" | grep -o '<<"[^"]*">>' | sed -n '2,$p' | tr -d '<>"' | paste -sd, -)"
+    # a package without a license file of its own: the standard text of its license,
+    # from the license texts fetched above (Apache-2.0 is in Elixir's)
+    if [ -z "$(ls "$stage/licenses/hex/$app")" ]; then
+      for l in ${spdx//,/ }; do
+        t="$(ls "$stage"/licenses/*/LICENSES/"$l.txt" 2>/dev/null | head -1)"
+        if [ -n "$t" ]; then cp "$t" "$stage/licenses/hex/$app/LICENSE-$l.txt"; fi
+      done
+    fi
+    files="$(ls "$stage/licenses/hex/$app" | paste -sd' ' -)"
+    hex_rows+="| $app | $spdx | ${files:-(none: see its repository)} |"$'\n'
+    break
+  done
+done
+{
+  echo "# Licenses of what the releases carry"
+  echo
+  echo "The releases in \`tezcatl/_build/prod/rel/\` and \`xipe_totec/_build/prod/rel/\` carry Erlang/OTP's runtime and"
+  echo "libraries, Elixir's standard library, and the Hex packages below."
+  echo
+  echo "- Erlang/OTP $otp_version: Apache-2.0 — \`erlang-otp-$otp_version/LICENSE.txt\`; the licenses of the third-party code in"
+  echo "  it are in \`erlang-otp-$otp_version/LICENSES/\`"
+  echo "- Elixir $elixir_version: Apache-2.0 — \`elixir-$elixir_version/LICENSE\`, with \`elixir-$elixir_version/LICENSES/\`"
+  echo
+  echo "| Hex package | License | Files in \`hex/<package>/\` |"
+  echo "|---|---|---|"
+  printf '%s' "$hex_rows" | sort
+} > "$stage/licenses/README.md"
 
 {
   echo "tezcatlipoca $version"

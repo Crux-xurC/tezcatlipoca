@@ -38,7 +38,8 @@ bin/tezcatlipoca start                           # Poca
 
 In Poca, open box (`Ctrl+Shift+B`), start `emacs`, `xipe_totec` and `tezcatl`, then open `http://127.0.0.1:4001/main.html` and pick
 `frame`. `setup` writes those rows into Poca's `~/.config/poca/box.json`, keeping your other rows and the file before
-(`box.json.bak-<time>`); run it again to change them. Closing Poca's last window stops what it started.
+(`box.json.bak-<time>`); run it again to change them. The rows hold this directory's path: after moving or renaming it,
+run `setup` again. Closing Poca's last window stops what it started.
 
 Without Poca: `tezcatl/bin/t --no-auth` and any Chromium-based browser.
 
@@ -54,4 +55,6 @@ How to use and extend tezcatl: `tezcatl/docs/how-to-use.md`, `tezcatl/README.tez
 ## Licenses
 
 tezcatl, Xipe Totec, Poca, embody: MIT (each directory's `LICENSE`). emacs-vent: GPL-3.0-or-later. Poca includes CEF and Chromium,
-under their own licenses: `poca/LICENSE-CEF.txt` and `poca/CREDITS-Chromium.html`.
+under their own licenses: `poca/LICENSE-CEF.txt` and `poca/CREDITS-Chromium.html`. The releases in `tezcatl/` and `xipe_totec/`
+carry Erlang/OTP's runtime, Elixir's standard library (both Apache-2.0) and Hex packages (cowboy, gun, erlexec, myxql …), each under
+its own license: `licenses/README.md` lists them, with their license texts in `licenses/`.

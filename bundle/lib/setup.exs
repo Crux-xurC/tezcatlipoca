@@ -13,7 +13,7 @@
 {opts, rest, bad} =
   OptionParser.parse(args, strict: [fs_root: :string, emacs: :string, no_emacs: :boolean])
 
-if rest != [] or bad != [] do
+if rest != [] or bad != [] or (opts[:no_emacs] && opts[:emacs] != nil) do
   IO.puts(:stderr, "usage: tezcatlipoca setup [--fs-root <dir>] [--emacs <command> | --no-emacs]")
   System.halt(2)
 end
@@ -106,6 +106,10 @@ ours = ["tezcatl", "xipe_totec", "emacs"]
 
     {:error, :enoent} ->
       {%{}, []}
+
+    {:error, reason} ->
+      IO.puts(:stderr, "tezcatlipoca setup: cannot read #{box_file}: #{:file.format_error(reason)}")
+      System.halt(1)
   end
 
 if File.exists?(box_file) do

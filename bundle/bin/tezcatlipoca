@@ -27,16 +27,32 @@ case "${1:-}" in
              "$here"/tezcatl/_build/prod/rel/tezcatl_relay/erts-*/bin/beam.smp \
              "$here"/tezcatl/_build/prod/rel/tezcatl_relay/lib/erlexec-*/priv/*/exec-port \
              "$here"/tezcatl/_build/prod/rel/tezcatl_relay/lib/crypto-*/priv/lib/crypto.so; do
-      missing="$(ldd "$f" 2>/dev/null | awk '/not found/ {print $1}' | sort -u | tr '\n' ' ')"
+      # a glob that matched nothing stays as written: the bundle is incomplete
+      if [ ! -e "$f" ]; then
+        echo "not in the bundle: ${f#$here/} (unpack the tarball again)"
+        status=1
+        continue
+      fi
+      # ldd fails on some files (e.g. not a dynamic program); what it printed is enough
+      missing="$({ ldd "$f" 2>/dev/null || true; } | awk '/not found/ {print $1}' | sort -u | tr '\n' ' ')"
       if [ -n "$missing" ]; then
         echo "missing for ${f#$here/}: $missing"
         status=1
       fi
     done
-    for c in rg emacs; do
-      command -v "$c" >/dev/null 2>&1 || echo "not on PATH (optional): $c"
-    done
     [ "$status" = 0 ] && echo "tezcatlipoca check: the system libraries are there"
+    command -v rg >/dev/null 2>&1 || echo "not on PATH (optional, for :grep): rg"
+    if command -v emacs >/dev/null 2>&1; then
+      # emacs-vent needs the websocket package; package.el is what most install it with
+      if emacs --batch --eval "(progn (package-initialize) (require 'websocket))" >/dev/null 2>&1; then
+        echo "emacs: the websocket package is there"
+      else
+        echo "emacs: no websocket package found through package.el -- M-x package-install RET websocket"
+        echo "       (ignore this if your Emacs gets it another way, e.g. straight.el or your distribution)"
+      fi
+    else
+      echo "not on PATH: emacs (setup --emacs <command> names another, --no-emacs starts none)"
+    fi
     exit "$status"
     ;;
   version)

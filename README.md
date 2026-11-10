@@ -24,7 +24,8 @@ This repository holds no code of its own beyond packaging: which commits go toge
 ./build.sh      # -> dist/tezcatlipoca-<VERSION>-linux-x86_64.tar.gz and its .sha256
 ```
 
-It needs git with access to the repositories, Elixir and Erlang/OTP, gcc/g++, make, libcap, CMake 3.21+, ninja, strip, and the CEF
+It needs git and network access (the repositories, Hex, and the license texts of Erlang/OTP and Elixir from their tags), Elixir 1.18
+or later with Erlang/OTP 27 or later, gcc/g++, make, libcap, CMake 3.21+, ninja, strip, and the CEF
 binary distribution Poca's README names (`POCA_VENDOR`, default `../poca/vendor`). Run it outside any Nix shell: the releases carry the
 Erlang runtime they are built with, and the result needs a glibc at least as new as the building machine's (recorded in the tarball's
 `BUILD`). The checkouts and builds stay in `_work/` between runs. Their path is written into what is built (Elixir's
