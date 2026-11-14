@@ -23,6 +23,14 @@ case "${1:-}" in
     ;;
   check)
     status=0
+    # the glibc first: a release built on a newer one does not start at all
+    need_glibc="$(sed -n 's/.*libc) \([0-9.]*\).*/\1/p' "$here/BUILD" | head -1)"
+    have_glibc="$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')"
+    if [ -n "$need_glibc" ] && [ -n "$have_glibc" ] \
+       && [ "$(printf '%s\n%s\n' "$need_glibc" "$have_glibc" | sort -V | head -1)" != "$need_glibc" ]; then
+      echo "glibc $need_glibc or newer is needed (this bundle was built with it); this machine has $have_glibc"
+      status=1
+    fi
     for f in "$here/poca/poca" "$here/poca/libcef.so" \
              "$here"/tezcatl/_build/prod/rel/tezcatl_relay/erts-*/bin/beam.smp \
              "$here"/tezcatl/_build/prod/rel/tezcatl_relay/lib/erlexec-*/priv/*/exec-port \
@@ -33,8 +41,12 @@ case "${1:-}" in
         status=1
         continue
       fi
-      # ldd fails on some files (e.g. not a dynamic program); what it printed is enough
-      missing="$({ ldd "$f" 2>/dev/null || true; } | awk '/not found/ {print $1}' | sort -u | tr '\n' ' ')"
+      # ldd fails on some files (e.g. not a dynamic program); what it printed is enough.
+      # Two kinds of "not found": a library ("libfoo.so.1 => not found") and a
+      # version of one ("...: version `GLIBC_2.43' not found (required by ...)")
+      missing="$({ LC_ALL=C ldd "$f" 2>&1 || true; } \
+        | sed -n -e "s/.*version .\([^' ]*\)' not found.*/\1/p" -e 's/^[[:space:]]*\([^ ]*\) => not found.*/\1/p' \
+        | sort -u | tr '\n' ' ')"
       if [ -n "$missing" ]; then
         echo "missing for ${f#$here/}: $missing"
         status=1
@@ -59,7 +71,7 @@ case "${1:-}" in
     cat "$here/BUILD"
     ;;
   *)
-    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
     [ -z "${1:-}" ] || exit 2
     ;;
 esac

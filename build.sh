@@ -57,10 +57,24 @@ for n in "${order[@]}"; do
   git -C "$src" remote set-url origin "${url[$n]}"
   git -C "$src" fetch --quiet origin
   git -C "$src" checkout --quiet --detach "${commit[$n]}"
-  # anything not committed, except the builds kept between runs
-  git -C "$src" clean -fdxq -e /_build -e /deps
+  # anything not committed. _build and deps are removed too, so that what is
+  # published is built from the lock alone; TEZCATLIPOCA_KEEP_BUILDS=1 keeps
+  # them between runs (quicker, for trying a build, not for a release)
+  if [ -n "${TEZCATLIPOCA_KEEP_BUILDS:-}" ]; then
+    git -C "$src" clean -fdxq -e /_build -e /deps
+  else
+    git -C "$src" clean -fdxq
+  fi
   echo "build.sh: $n at $(git -C "$src" rev-parse --short HEAD)"
 done
+
+# the time stamped on what is made: the newest of the locked commits and this
+# repository's (the same lock gives the same time), unless set from outside
+if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
+  SOURCE_DATE_EPOCH="$( { for n in "${order[@]}"; do git -C "$work/src/$n" log -1 --format=%ct "${commit[$n]}"; done
+                          git -C "$root" log -1 --format=%ct 2>/dev/null || true; } | sort -n | tail -1)"
+fi
+export SOURCE_DATE_EPOCH
 
 # --- builds ----------------------------------------------------------------------
 for n in tezcatl_without_nix xipe_totec_without_nix; do
@@ -97,7 +111,17 @@ done
 # information left out (libcef.so is 1.4 GB with it)
 mkdir -p "$stage/poca"
 cp -a "$work/poca-build/Release/." "$stage/poca/"
-git -C "$work/src/poca" archive "${commit[poca]}" LICENSE README.md | tar -x -C "$stage/poca"
+git -C "$work/src/poca" archive "${commit[poca]}" LICENSE | tar -x -C "$stage/poca"
+# Poca's README is for a checkout of Poca (./run, ./install-desktop, building):
+# kept as README.poca.md, behind a README.md that says how it differs here
+git -C "$work/src/poca" show "${commit[poca]}:README.md" > "$stage/poca/README.poca.md"
+cat > "$stage/poca/README.md" <<POCA_README
+# Poca in tezcatlipoca
+
+Poca ${commit[poca]:0:12}, built (https://github.com/Crux-xurC/poca). In this bundle start it with
+\`bin/tezcatlipoca start\`. Poca's own README is \`README.poca.md\`: what it says about using Poca holds here, but \`./run\`,
+\`./install-desktop\` and building belong to a checkout of Poca's repository and are not in this bundle.
+POCA_README
 # CEF's license and Chromium's credits (the third-party notices), from the CEF
 # distribution Poca's CMakeLists.txt builds with (vendor/ may hold others)
 cef="$POCA_VENDOR/$(grep -o 'vendor/cef_binary_[^"]*' "$work/src/poca/CMakeLists.txt" | head -1 | sed 's|^vendor/||')"
@@ -171,8 +195,8 @@ done
 
 {
   echo "tezcatlipoca $version"
-  echo "built $(date -u +%Y-%m-%dT%H:%MZ) on $(uname -sm), $(ldd --version | head -1)"
-  echo "Elixir $(elixir --short-version), Erlang/OTP $(erl -noshell -eval 'io:put_chars(erlang:system_info(otp_release)), halt().')"
+  echo "sources of $(date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%MZ), built on $(uname -sm), $(ldd --version | head -1)"
+  echo "Elixir $(elixir --short-version), Erlang/OTP $(erl -noshell -eval 'io:put_chars(erlang:system_info(otp_release)), halt().'), $(erl -noshell -eval '[{_, _, V} | _] = crypto:info_lib(), io:put_chars(V), halt().')"
   echo
   echo "# name  repository  commit"
   for n in "${order[@]}"; do echo "$n  ${url[$n]}  ${commit[$n]}"; done
@@ -187,6 +211,9 @@ fi
 
 # --- tarball ---------------------------------------------------------------------
 mkdir -p "$root/dist"
-tar -C "$work/stage" -czf "$root/dist/$name.tar.gz" "tezcatlipoca-$version"
+# the same files give the same tarball: names in order, no owner of this
+# machine, one time stamp (SOURCE_DATE_EPOCH), and gzip without its own
+tar -C "$work/stage" --format=gnu --sort=name --owner=0 --group=0 --numeric-owner \
+  --mtime="@$SOURCE_DATE_EPOCH" -cf - "tezcatlipoca-$version" | gzip -n -9 > "$root/dist/$name.tar.gz"
 ( cd "$root/dist" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256" )
 echo "build.sh: $(du -h "$root/dist/$name.tar.gz" | cut -f1)  dist/$name.tar.gz"

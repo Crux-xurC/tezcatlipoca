@@ -17,7 +17,13 @@ are in `BUILD` (`bin/tezcatlipoca version`).
 ## Requirements
 
 - Linux x86_64 with a glibc at least as new as the one in `BUILD`, and the system libraries Poca (Chromium) and the Erlang runtime use:
-  X11 / Wayland, GTK's GLib, NSS, ALSA, OpenSSL 3, libcap … — `bin/tezcatlipoca check` lists what is missing
+  X11 / Wayland, GTK's GLib, NSS, ALSA, OpenSSL 3, libcap … OpenSSL 3 means one at least as new as the version the Erlang runtime
+  asks for, which may be later than 3.0 (`BUILD` records the OpenSSL it was built with). `bin/tezcatlipoca check` lists what is
+  missing, naming the library or the version (e.g. `GLIBC_2.43`, `OPENSSL_3.4.0`) this machine lacks
+- **A machine only you log in to.** Nothing guards against other users of the same machine: `127.0.0.1` is open to every user, and
+  the relay (`:4100`), emacs-vent (`:4000`) and Xipe Totec (`:4200`) accept connections without a secret from programs that are not
+  a browser — another user could reach a shell, your files and your Emacs as you. Do not run it on a shared host
+  (`tezcatl/docs/scope.md`, "Other users of the same machine")
 - Emacs with the `websocket` package (`M-x package-install RET websocket`)
 - Optional: ripgrep (`rg`) for `:grep`; the language servers you want (`tezcatl/lsp/README.md`); for Xipe Totec, the REPLs of your
   projects (`iex`, `ocaml`, `ghci`)
@@ -46,7 +52,7 @@ Without Poca: `tezcatl/bin/t --no-auth` and any Chromium-based browser.
 ## Documents
 
 How to use and extend tezcatl: `tezcatl/docs/how-to-use.md`, `tezcatl/README.tezcatl.md`. Xipe Totec: `xipe_totec/README.md`,
-`xipe_totec/document/how-to-use.md`. Poca: `poca/README.md`.
+`xipe_totec/document/how-to-use.md`. Poca: `poca/README.md` (in this bundle, start it with `bin/tezcatlipoca start`).
 
 ## Status
 
