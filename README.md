@@ -38,10 +38,10 @@ binary distribution Poca's README names (`POCA_VENDOR`, default `../poca/vendor`
 Erlang runtime they are built with, and the result needs a glibc (and an OpenSSL) at least as new as the building machine's
 (recorded in the tarball's `BUILD`), so build on an old one for the tarball to run widely. Each run builds the locked commits from
 clean checkouts (`TEZCATLIPOCA_KEEP_BUILDS=1` keeps `_build` and `deps` between runs, for trying a build), and the tarball is made
-with sorted names, owner 0/0 and one time stamp, `SOURCE_DATE_EPOCH` (by default the newest of the locked commits and this
+with sorted names, owner 0/0, modes independent of the umask and one time stamp, `SOURCE_DATE_EPOCH` (by default the newest of the locked commits and this
 repository's). The checkouts and builds stay in `_work/` between runs. Their path is written into what is built (Elixir's
 `__DIR__`, C++'s `__FILE__`), so for a tarball to publish set `TEZCATLIPOCA_WORK` to a directory without personal names in its path
-(e.g. `/var/tmp/tezcatlipoca`); `build.sh` stops when the tarball would hold `$HOME`'s path.
+(e.g. `/var/tmp/tezcatlipoca`); `build.sh` stops when the tarball would hold `$HOME`'s path or a directory named as the user.
 
 ## Updating
 

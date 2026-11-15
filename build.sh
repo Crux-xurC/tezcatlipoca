@@ -202,9 +202,12 @@ done
   for n in "${order[@]}"; do echo "$n  ${url[$n]}  ${commit[$n]}"; done
 } > "$stage/BUILD"
 
-# --- no path of this machine's home in what is published -------------------------
-if leaks="$(grep -rlaF "$HOME/" "$stage" | head -5)" && [ -n "$leaks" ]; then
-  echo "build.sh: these hold $HOME's path (build in a TEZCATLIPOCA_WORK outside it):" >&2
+# --- no path of this machine's home, or with the user's name, in what is published -
+# ($HOME's path, and any path with a directory named as this user, e.g. a
+# TEZCATLIPOCA_WORK of /var/tmp/<user>/...)
+user="$(id -un)"
+if leaks="$(grep -rlaF -e "$HOME/" -e "/$user/" "$stage" | head -5)" && [ -n "$leaks" ]; then
+  echo "build.sh: these hold $HOME's path or a /$user/ directory (build in a TEZCATLIPOCA_WORK without them):" >&2
   echo "$leaks" | sed "s|^|  |" >&2
   [ -n "${TEZCATLIPOCA_ALLOW_HOME:-}" ] || exit 1
 fi
@@ -212,8 +215,10 @@ fi
 # --- tarball ---------------------------------------------------------------------
 mkdir -p "$root/dist"
 # the same files give the same tarball: names in order, no owner of this
-# machine, one time stamp (SOURCE_DATE_EPOCH), and gzip without its own
+# machine, modes not of this umask (rw-r--r--, rwxr-xr-x), one time stamp
+# (SOURCE_DATE_EPOCH), and gzip without its own
 tar -C "$work/stage" --format=gnu --sort=name --owner=0 --group=0 --numeric-owner \
+  --mode='u+rwX,go+rX,go-w' \
   --mtime="@$SOURCE_DATE_EPOCH" -cf - "tezcatlipoca-$version" | gzip -n -9 > "$root/dist/$name.tar.gz"
 ( cd "$root/dist" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256" )
 echo "build.sh: $(du -h "$root/dist/$name.tar.gz" | cut -f1)  dist/$name.tar.gz"
