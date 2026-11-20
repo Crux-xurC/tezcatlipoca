@@ -3,8 +3,8 @@
 # after the whole has been checked together (README.md, "Updating").
 #
 # name                    repository                                            commit
-tezcatl_without_nix       https://github.com/Crux-xurC/tezcatl_without_nix.git    7a5ea5d84dce57797b14fe95376b0a283d48c79f
-xipe_totec_without_nix    https://github.com/Crux-xurC/xipe_totec_without_nix.git 33cc477de4698da40b3bc55ad5ea3f4075fa7f7c
+tezcatl_without_nix       https://github.com/Crux-xurC/tezcatl_without_nix.git    9d7d5158f15fe4ed18e7d21cac95bb1fa1cad286
+xipe_totec_without_nix    https://github.com/Crux-xurC/xipe_totec_without_nix.git dfa4c47460e98d6a14991660a3019319c2d03b75
 poca                      https://github.com/Crux-xurC/poca.git                   01f0f481f378716eb236155434a1e92268dd423e
-embody                    https://github.com/Crux-xurC/embody.git                 1e9becdecbee358b1b631e4b9d469f30c7ec0fdc
+embody                    https://github.com/Crux-xurC/embody.git                 29548da248dacaedfb83842577f3a09f6ba7ba29
 emacs-vent                https://github.com/Crux-xurC/emacs-vent.git             2261120149ef17aeb27b80749b4ef617daddabc7

@@ -8,6 +8,9 @@
 #   tezcatl_without_nix, xipe_totec_without_nix  mix release (Erlang's runtime included)
 #   poca                                        cmake, in _work/poca-build (CEF from POCA_VENDOR)
 #   embody, emacs-vent                          nothing (files)
+# It stops when tezcatl_without_nix or xipe_totec_without_nix at its locked
+# commit was not synced from its upstream's main as published now
+# (sync/UPSTREAM_TREE; TEZCATLIPOCA_ALLOW_LAG=1 builds anyway).
 # then puts each component's committed files (git archive) and its build into
 # _work/stage/tezcatlipoca-<VERSION>/, with bundle/ (the tezcatlipoca command,
 # its README), and makes the tarball.
@@ -67,6 +70,33 @@ for n in "${order[@]}"; do
   fi
   echo "build.sh: $n at $(git -C "$src" rev-parse --short HEAD)"
 done
+
+# --- the without-Nix repositories are in step with their upstreams ------------------
+# Each records the tree of the upstream commit it was synced from
+# (sync/UPSTREAM_TREE); upstream's published main must have that tree, or the
+# tarball would carry an older tezcatl / Xipe Totec than the one announced
+# (the published tezcatl is another history with the same trees, so trees are
+# compared). TEZCATLIPOCA_ALLOW_LAG=1 builds anyway (for trying a build).
+declare -A upstream=(
+  [tezcatl_without_nix]=https://github.com/Crux-xurC/tezcatl.git
+  [xipe_totec_without_nix]=https://github.com/Crux-xurC/xipe_totec.git
+)
+lag=0
+for n in "${!upstream[@]}"; do
+  synced="$(git -C "$work/src/$n" show "${commit[$n]}:sync/UPSTREAM_TREE" 2>/dev/null | tr -d '[:space:]' || true)"
+  up="$work/upstream/$n"
+  if [ ! -d "$up/.git" ]; then git clone --quiet --filter=blob:none "${upstream[$n]}" "$up"; fi
+  git -C "$up" fetch --quiet origin
+  main="$(git -C "$up" rev-parse 'origin/main^{tree}')"
+  if [ "$synced" != "$main" ]; then
+    echo "build.sh: $n (${commit[$n]:0:7}) was synced from tree ${synced:-?}, upstream's main is $main -- sync it, push, and lock the new commit" >&2
+    lag=1
+  fi
+done
+if [ "$lag" = 1 ] && [ -z "${TEZCATLIPOCA_ALLOW_LAG:-}" ]; then
+  echo "build.sh: stopped (TEZCATLIPOCA_ALLOW_LAG=1 to build anyway, not for a release)" >&2
+  exit 1
+fi
 
 # the time stamped on what is made: the newest of the locked commits and this
 # repository's (the same lock gives the same time), unless set from outside

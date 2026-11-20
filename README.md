@@ -4,7 +4,7 @@
 the window (an editor, file trees and terminals in a browser page): it decides how things are operated and shown, and sends what you
 type to the backends without interpreting it — Emacs through [emacs-vent](https://github.com/Crux-xurC/emacs-vent) (Magit, Org,
 dired …), a terminal, the disk, language servers, and [Xipe Totec](https://github.com/Crux-xurC/xipe_totec), which evaluates code
-in your project's REPL (Elixir, OCaml, Haskell). [Poca](https://github.com/Crux-xurC/poca) is the small Chromium-based browser it
+in your project's REPL (Elixir, OCaml, Haskell, Python, F#, C#, Scala, Java) and can be used by an AI agent over MCP. [Poca](https://github.com/Crux-xurC/poca) is the small Chromium-based browser it
 opens in, which starts the backends and stops them when its last window closes.
 
 Tezcatl in Poca, without Nix: a tarball with everything to run [tezcatl](https://github.com/Crux-xurC/tezcatl) in
@@ -45,7 +45,9 @@ repository's). The checkouts and builds stay in `_work/` between runs. Their pat
 
 ## Updating
 
-1. Sync the without-Nix repositories from their upstreams (their `sync/README.md`) and push them
+1. Publish tezcatl and push xipe_totec, then sync the without-Nix repositories from them (their `sync/README.md`) and push them.
+   `build.sh` stops when a locked without-Nix commit was not synced from its upstream's `main` as published (compared by tree,
+   `sync/UPSTREAM_TREE`; `TEZCATLIPOCA_ALLOW_LAG=1` builds anyway, not for a release)
 2. Put the new commits in `versions.lock`, raise `VERSION`
 3. `./build.sh`, unpack the tarball somewhere else, `bin/tezcatlipoca check`, `setup`, `start`, and use it: tezcatl, Xipe Totec and
    Emacs from Poca's box

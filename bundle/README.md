@@ -11,7 +11,7 @@ are in `BUILD` (`bin/tezcatlipoca version`).
 | `xipe_totec/` | Xipe Totec without Nix (xipe_totec_without_nix), its server and CLI as a release |
 | `poca/` | Poca, built (CEF included) |
 | `emacs-vent/` | the Emacs side, loaded into your Emacs |
-| `embody/` | what Xipe Totec loads into OCaml / Haskell REPLs |
+| `embody/` | what Xipe Totec loads into the REPLs of every language but Elixir |
 | `bin/tezcatlipoca` | `setup`, `start`, `check`, `version` |
 
 ## Requirements
@@ -25,8 +25,11 @@ are in `BUILD` (`bin/tezcatlipoca version`).
   a browser — another user could reach a shell, your files and your Emacs as you. Do not run it on a shared host
   (`tezcatl/docs/scope.md`, "Other users of the same machine")
 - Emacs with the `websocket` package (`M-x package-install RET websocket`)
-- Optional: ripgrep (`rg`) for `:grep`; the language servers you want (`tezcatl/lsp/README.md`); for Xipe Totec, the REPLs of your
-  projects (`iex`, `ocaml`, `ghci`)
+- Optional: ripgrep (`rg`) for `:grep`; the language servers you want (`tezcatl/lsp/README.md`); for Xipe Totec, the REPLs and build
+  tools of your projects (`iex`, `ocaml`, `ghci`, `python3`, `dotnet`, `scala` with `sbt` or `scala-cli`, `java` with `mvn`;
+  `xipe_totec/document/how-to-use.md` §9)
+- **Scala and Java projects: build them once yourself, online, before the first evaluation** (`sbt compile`, `scala-cli compile .`,
+  `mvn compile`). Xipe Totec fetches nothing; with the build tool's cache empty the rows fail with `Error downloading …`
 
 Elixir is not needed to run it (the releases carry their own runtime), but Xipe Totec evaluates an Elixir project in that project's
 own `iex`.
@@ -49,10 +52,23 @@ run `setup` again. Closing Poca's last window stops what it started.
 
 Without Poca: `tezcatl/bin/t --no-auth` and any Chromium-based browser.
 
+## An AI agent through Xipe Totec (MCP)
+
+With `xipe_totec` started, an MCP client (Claude Code …) can use it: in your project's `.mcp.json`,
+
+```json
+{ "mcpServers": { "xipe-totec": { "command": "<this directory>/xipe_totec/bin/xipe", "args": ["mcp"] } } }
+```
+
+The agent searches and reads functions, adds calc rows and evaluates them in the Book you see. It only proposes a function's
+side-effect class, with a reason; nothing of that function is evaluated until you approve it — in tezcatl's matrix,
+`matrix get xipe_classes:all`, select the rows, `matrix approve` (`g d` shows a function's source), or
+`xipe_totec/bin/xipe do effect/approve 'ids=[…]'`. More: `xipe_totec/document/mcp.md`.
+
 ## Documents
 
-How to use and extend tezcatl: `tezcatl/docs/how-to-use.md`, `tezcatl/README.tezcatl.md`. Xipe Totec: `xipe_totec/README.md`,
-`xipe_totec/document/how-to-use.md`. Poca: `poca/README.md` (in this bundle, start it with `bin/tezcatlipoca start`).
+How to use and extend tezcatl: `tezcatl/docs/how-to-use.md`, `tezcatl/README.tezcatl.md`. Xipe Totec: `xipe_totec/README.xipe_totec.md` (the
+short entrance; the whole is `README.full.md`), `xipe_totec/document/how-to-use.md`. Poca: `poca/README.md` (in this bundle, start it with `bin/tezcatlipoca start`).
 
 ## Status
 
