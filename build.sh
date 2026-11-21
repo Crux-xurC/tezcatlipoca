@@ -6,7 +6,7 @@
 # For each component it clones (once) into _work/src/<name>, checks out the
 # locked commit, and builds what needs building:
 #   tezcatl_without_nix, xipe_totec_without_nix  mix release (Erlang's runtime included)
-#   poca                                        cmake, in _work/poca-build (CEF from POCA_VENDOR)
+#   poca                                        cmake, in _work/poca-build (CEF, see Needs)
 #   embody, emacs-vent                          nothing (files)
 # It stops when tezcatl_without_nix or xipe_totec_without_nix at its locked
 # commit was not synced from its upstream's main as published now
@@ -17,9 +17,11 @@
 #
 # Needs: git (with access to the repositories), Elixir and Erlang/OTP, gcc/g++,
 # make, libcap, CMake 3.21+, ninja, strip, and the CEF binary distribution
-# Poca's README names: POCA_VENDOR is the directory holding it (Poca's
-# vendor/; default ../poca/vendor beside this repository). Build outside any
-# Nix shell: the releases carry the Erlang runtime they are built with.
+# the locked Poca's CMakeLists.txt names, where Poca looks for it:
+# ~/.local/share/cef/<distribution>, or CEF_ROOT (the distribution itself).
+# POCA_VENDOR (a directory holding distributions, as Poca's vendor/ did before
+# its 6603fc1) is still read. Build outside any Nix shell: the releases carry
+# the Erlang runtime they are built with.
 #
 # The result runs on Linux x86_64 with a glibc at least as new as this
 # machine's (written into the tarball's BUILD file).
@@ -33,13 +35,11 @@ work="${TEZCATLIPOCA_WORK:-$root/_work}"
 version="$(tr -d '[:space:]' < "$root/VERSION")"
 name="tezcatlipoca-$version-linux-x86_64"
 stage="$work/stage/tezcatlipoca-$version"
-POCA_VENDOR="${POCA_VENDOR:-$root/../poca/vendor}"
 
 if [ -n "${IN_NIX_SHELL:-}" ]; then
   echo "build.sh: run outside a Nix shell (the releases would carry Nix's Erlang)" >&2
   exit 1
 fi
-[ -d "$POCA_VENDOR" ] || { echo "build.sh: no CEF at POCA_VENDOR=$POCA_VENDOR (see Poca's README, Build)" >&2; exit 1; }
 
 # --- the locked commits ----------------------------------------------------------
 declare -A url commit
@@ -70,6 +70,26 @@ for n in "${order[@]}"; do
   fi
   echo "build.sh: $n at $(git -C "$src" rev-parse --short HEAD)"
 done
+
+# --- the CEF distribution the locked Poca builds with ------------------------------
+# Its name is in Poca's CMakeLists.txt (vendor/<name> before Poca's 6603fc1,
+# POCA_CEF_DIST after). It is given to CMake through a link inside Poca's
+# checkout, so that its path in what is built is mapped like Poca's own.
+cef_dist="$(grep -o 'cef_binary_[^"]*' "$work/src/poca/CMakeLists.txt" | head -1)"
+[ -n "$cef_dist" ] || { echo "build.sh: no CEF distribution named in Poca's CMakeLists.txt" >&2; exit 1; }
+if [ -n "${CEF_ROOT:-}" ]; then
+  cef="$CEF_ROOT"
+elif [ -n "${POCA_VENDOR:-}" ]; then
+  cef="$POCA_VENDOR/$cef_dist"
+else
+  cef="$HOME/.local/share/cef/$cef_dist"
+fi
+[ -f "$cef/cmake/FindCEF.cmake" ] || {
+  echo "build.sh: no CEF at $cef -- expand $cef_dist under ~/.local/share/cef/ (Poca's README, Build), or set CEF_ROOT" >&2
+  exit 1
+}
+cef="$(cd "$cef" && pwd)"
+echo "build.sh: CEF $cef"
 
 # --- the without-Nix repositories are in step with their upstreams ------------------
 # Each records the tree of the upstream commit it was synced from
@@ -114,12 +134,15 @@ for n in tezcatl_without_nix xipe_totec_without_nix; do
 done
 
 echo "build.sh: Poca (cmake)"
-ln -sfn "$(cd "$POCA_VENDOR" && pwd)" "$work/src/poca/vendor"
+rm -rf "$work/src/poca/vendor"
+mkdir -p "$work/src/poca/vendor"
+ln -sfn "$cef" "$work/src/poca/vendor/$cef_dist"
 cmake -S "$work/src/poca" -B "$work/poca-build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  "-DCEF_ROOT=$work/src/poca/vendor/$cef_dist" \
   "-DCMAKE_CXX_FLAGS=-ffile-prefix-map=$work/src/poca=poca -ffile-prefix-map=$work/poca-build=poca-build" > "$work/poca.build.log" 2>&1 \
   && cmake --build "$work/poca-build" --target poca -j >> "$work/poca.build.log" 2>&1 \
   || { echo "build.sh: Poca failed: $work/poca.build.log" >&2; exit 1; }
-rm -f "$work/src/poca/vendor"
+rm -rf "$work/src/poca/vendor"
 
 # --- stage -----------------------------------------------------------------------
 echo "build.sh: stage $stage"
@@ -153,8 +176,7 @@ Poca ${commit[poca]:0:12}, built (https://github.com/Crux-xurC/poca). In this bu
 \`./install-desktop\` and building belong to a checkout of Poca's repository and are not in this bundle.
 POCA_README
 # CEF's license and Chromium's credits (the third-party notices), from the CEF
-# distribution Poca's CMakeLists.txt builds with (vendor/ may hold others)
-cef="$POCA_VENDOR/$(grep -o 'vendor/cef_binary_[^"]*' "$work/src/poca/CMakeLists.txt" | head -1 | sed 's|^vendor/||')"
+# distribution Poca was built with (above)
 [ -f "$cef/LICENSE.txt" ] || { echo "build.sh: no CEF license at $cef" >&2; exit 1; }
 cp "$cef/LICENSE.txt" "$stage/poca/LICENSE-CEF.txt"
 cp "$cef/CREDITS.html" "$stage/poca/CREDITS-Chromium.html"

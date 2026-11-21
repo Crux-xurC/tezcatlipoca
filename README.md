@@ -36,7 +36,8 @@ This repository holds no code of its own beyond packaging: which commits go toge
 
 It needs git and network access (the repositories, Hex, and the license texts of Erlang/OTP and Elixir from their tags), Elixir 1.18
 or later with Erlang/OTP 27 or later, gcc/g++, make, libcap, CMake 3.21+, ninja, strip, and the CEF
-binary distribution Poca's README names (`POCA_VENDOR`, default `../poca/vendor`). Run it outside any Nix shell: the releases carry the
+binary distribution the locked Poca names, where Poca looks for it (`~/.local/share/cef/<distribution>`, or `CEF_ROOT`; `POCA_VENDOR`, a
+directory holding distributions, is still read). Run it outside any Nix shell: the releases carry the
 Erlang runtime they are built with, and the result needs a glibc (and an OpenSSL) at least as new as the building machine's
 (recorded in the tarball's `BUILD`), so build on an old one for the tarball to run widely. Each run builds the locked commits from
 clean checkouts (`TEZCATLIPOCA_KEEP_BUILDS=1` keeps `_build` and `deps` between runs, for trying a build), and the tarball is made
@@ -50,7 +51,8 @@ repository's). The checkouts and builds stay in `_work/` between runs. Their pat
 1. Publish tezcatl and push xipe_totec, then sync the without-Nix repositories from them (their `sync/README.md`) and push them.
    `build.sh` stops when a locked without-Nix commit was not synced from its upstream's `main` as published (compared by tree,
    `sync/UPSTREAM_TREE`; `TEZCATLIPOCA_ALLOW_LAG=1` builds anyway, not for a release)
-2. Put the new commits in `versions.lock`, raise `VERSION`
+2. Raise `VERSION`, and to the same version the one `xipe version` prints (xipe_totec's `lib/help.exs`, before step 1's sync) and
+   the two without-Nix repositories' `mix.exs`; put the new commits in `versions.lock`
 3. `./build.sh`, unpack the tarball somewhere else, `bin/tezcatlipoca check`, `setup`, `start`, and use it: tezcatl, Xipe Totec and
    Emacs from Poca's box
 4. Commit, tag `v<VERSION>`, and attach the tarball and its `.sha256` to a release
