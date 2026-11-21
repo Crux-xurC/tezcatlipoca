@@ -7,6 +7,8 @@ dired …), a terminal, the disk, language servers, and [Xipe Totec](https://git
 in your project's REPL (Elixir, OCaml, Haskell, Python, F#, C#, Scala, Java) and can be used by an AI agent over MCP. [Poca](https://github.com/Crux-xurC/poca) is the small Chromium-based browser it
 opens in, which starts the backends and stops them when its last window closes.
 
+What it looks like: [Xipe Totec's README](https://github.com/Crux-xurC/xipe_totec#readme) has a screenshot and a 3.5-minute video of an AI agent trying a library's functions over MCP, with tezcatl as the window.
+
 Tezcatl in Poca, without Nix: a tarball with everything to run [tezcatl](https://github.com/Crux-xurC/tezcatl) in
 [Poca](https://github.com/Crux-xurC/poca), with [Xipe Totec](https://github.com/Crux-xurC/xipe_totec) and
 [emacs-vent](https://github.com/Crux-xurC/emacs-vent) — on Linux x86_64, with no Nix and no Elixir to install.
