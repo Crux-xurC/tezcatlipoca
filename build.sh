@@ -257,10 +257,15 @@ done
 # --- no path of this machine's home, or with the user's name, in what is published -
 # ($HOME's path, and any path with a directory named as this user, e.g. a
 # TEZCATLIPOCA_WORK of /var/tmp/<user>/...)
+# (grep alone, not piped into head: under pipefail, head closing the pipe early
+# made grep die of SIGPIPE when 6+ files matched, and the check passed. grep's
+# 1 is "none"; anything above it is an error, which stops the build.)
 user="$(id -un)"
-if leaks="$(grep -rlaF -e "$HOME/" -e "/$user/" "$stage" | head -5)" && [ -n "$leaks" ]; then
+leaks="$(grep -rlaF -e "$HOME/" -e "/$user/" "$stage")" && found=0 || found=$?
+[ "$found" -le 1 ] || { echo "build.sh: grep failed ($found) looking for $HOME's path in $stage" >&2; exit 1; }
+if [ -n "$leaks" ]; then
   echo "build.sh: these hold $HOME's path or a /$user/ directory (build in a TEZCATLIPOCA_WORK without them):" >&2
-  echo "$leaks" | sed "s|^|  |" >&2
+  echo "$leaks" | sed -n "1,5s|^|  |p" >&2
   [ -n "${TEZCATLIPOCA_ALLOW_HOME:-}" ] || exit 1
 fi
 
