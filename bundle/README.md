@@ -45,10 +45,18 @@ xipe_totec/bin/xipe choice project ~/projects/foo   # the project Xipe Totec wor
 bin/tezcatlipoca start                           # Poca
 ```
 
-In Poca, open box (`Ctrl+Shift+B`), start `emacs`, `xipe_totec` and `tezcatl`, then open `http://127.0.0.1:4001/main.html` and pick
-`frame`. `setup` writes those rows into Poca's `~/.config/poca/box.json`, keeping your other rows and the file before
-(`box.json.bak-<time>`); run it again to change them. The rows hold this directory's path: after moving or renaming it,
-run `setup` again. Closing Poca's last window stops what it started.
+In Poca, open box (`Ctrl+Shift+B`), start `emacs`, `xipe_totec` and `tezcatl`, then open the bookmark `tezcatl`
+(`http://127.0.0.1:4001/main.html`) and pick `frame`. `setup` writes those rows into Poca's `~/.config/poca/box.json` and the
+bookmark into `~/.config/poca/bookmarks.json`, keeping your other rows and bookmarks and the files before
+(`box.json.bak-<time>`, `bookmarks.json.bak-<time>`); run it again to change them. The rows hold this directory's path: after
+moving or renaming it, run `setup` again.
+
+**Stop them before Poca ends.** Closing Poca's last window stops what it started; Poca ending any other way (logging out with
+its window open, Poca killed) leaves them running, and the ports stay taken — for the next user of the machine too, whose
+tezcatl would then reach your shell and files. Stop the rows in box before closing Poca (or close its windows). `check` and
+`start` say who holds the ports (4000, 4001, 4100, 4200); `start` refuses while another user holds one. What is left of your
+own: `pgrep -u $USER -af '<this directory>/|fg-daemon=tezcatlipoca'` shows it, `pkill` with the same arguments stops it.
+Another user's can be stopped only by that user or by root.
 
 Without Poca: `tezcatl/bin/t --no-auth` and any Chromium-based browser.
 
@@ -61,9 +69,11 @@ With `xipe_totec` started, an MCP client (Claude Code …) can use it: in your p
 ```
 
 The agent searches and reads functions, adds calc rows and evaluates them in the Book you see. It only proposes a function's
-side-effect class, with a reason; nothing of that function is evaluated until you approve it — in tezcatl's matrix,
+side-effect class, with a reason; that function is not evaluated until you approve it — in tezcatl's matrix,
 `matrix get xipe_classes:all`, select the rows, `matrix approve` (`g d` shows a function's source), or
-`xipe_totec/bin/xipe do effect/approve 'ids=[…]'`. More: `xipe_totec/document/mcp.md`.
+`xipe_totec/bin/xipe do effect/approve 'ids=[…]'`. An approval covers the function's own body: a row's arguments (code the agent
+writes) and the functions it calls are not approved — read the arguments of the agent's rows (`xipe_totec/document/scope.md`,
+Evaluation). More: `xipe_totec/document/mcp.md`.
 
 ## Documents
 

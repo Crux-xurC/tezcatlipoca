@@ -7,6 +7,10 @@
 # daemon with this bundle's emacs-vent). Only rows of these names are
 # replaced; the person's other rows stay. The file before is kept as
 # box.json.bak-<time>.
+#
+# Bookmarks (Poca's README, bookmarks.json): one named "tezcatl", the main
+# page, so the person need not type its address. The same way: only that
+# name is replaced, the file before kept as bookmarks.json.bak-<time>.
 
 [bundle | args] = System.argv()
 
@@ -112,16 +116,47 @@ ours = ["tezcatl", "xipe_totec", "emacs"]
       System.halt(1)
   end
 
-if File.exists?(box_file) do
-  stamp = Calendar.strftime(DateTime.utc_now(), "%Y%m%d-%H%M%S")
-  # two runs in one second must not overwrite the first one's copy
-  bak =
-    Stream.iterate(0, &(&1 + 1))
-    |> Stream.map(fn 0 -> "#{box_file}.bak-#{stamp}"; n -> "#{box_file}.bak-#{stamp}-#{n}" end)
-    |> Enum.find(&(not File.exists?(&1)))
+# the file before, kept beside it (two runs in one second must not overwrite
+# the first one's copy)
+keep_before = fn file ->
+  if File.exists?(file) do
+    stamp = Calendar.strftime(DateTime.utc_now(), "%Y%m%d-%H%M%S")
 
-  File.cp!(box_file, bak)
+    bak =
+      Stream.iterate(0, &(&1 + 1))
+      |> Stream.map(fn 0 -> "#{file}.bak-#{stamp}"; n -> "#{file}.bak-#{stamp}-#{n}" end)
+      |> Enum.find(&(not File.exists?(&1)))
+
+    File.cp!(file, bak)
+  end
 end
+
+bookmarks_file = Path.join(config_dir, "bookmarks.json")
+bookmark = %{"name" => "tezcatl", "url" => "http://127.0.0.1:4001/main.html"}
+
+# read before anything is written: a bookmarks.json that is not a list stops
+# setup with both files as they were
+marks_kept =
+  case File.read(bookmarks_file) do
+    {:ok, text} ->
+      case JSON.decode(text) do
+        {:ok, list} when is_list(list) ->
+          Enum.reject(list, &(is_map(&1) and &1["name"] == bookmark["name"]))
+
+        _ ->
+          IO.puts(:stderr, "tezcatlipoca setup: #{bookmarks_file} is not a bookmarks.json ([{\"name\", \"url\"} ...]); left as it is")
+          System.halt(1)
+      end
+
+    {:error, :enoent} ->
+      []
+
+    {:error, reason} ->
+      IO.puts(:stderr, "tezcatlipoca setup: cannot read #{bookmarks_file}: #{:file.format_error(reason)}")
+      System.halt(1)
+  end
+
+keep_before.(box_file)
 
 # one program a line, as Poca's README writes it
 programs = kept ++ rows
@@ -137,6 +172,11 @@ text =
 File.mkdir_p!(config_dir)
 File.write!(box_file, text)
 
+# the tezcatl bookmark first, one a line as Poca's README writes them
+keep_before.(bookmarks_file)
+marks = [bookmark | marks_kept]
+File.write!(bookmarks_file, "[\n" <> Enum.map_join(marks, ",\n", &("  " <> JSON.encode!(&1))) <> "\n]\n")
+
 IO.puts("tezcatlipoca setup: wrote #{length(rows)} rows into #{box_file} (#{length(kept)} of yours kept)")
 IO.puts("  tezcatl      pages :4001, relay :4100 (Poca's secret); files and terminals under #{fs_root}")
 IO.puts("  xipe_totec   :4200 -- choose its project once first: #{Path.join(bundle, "xipe_totec/bin/xipe")} choice project <path>")
@@ -148,4 +188,5 @@ else
   IO.puts("  emacs        none (--no-emacs): start your own Emacs with emacs-vent on :4000")
 end
 
-IO.puts("Then: tezcatlipoca start, open box (Ctrl+Shift+B), start the rows, and open http://127.0.0.1:4001/main.html")
+IO.puts("  bookmark     \"tezcatl\" -> #{bookmark["url"]} in #{bookmarks_file} (#{length(marks_kept)} of yours kept)")
+IO.puts("Then: tezcatlipoca start, open box (Ctrl+Shift+B), start the rows, and open the bookmark \"tezcatl\"")

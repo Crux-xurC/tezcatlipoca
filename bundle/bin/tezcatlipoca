@@ -4,12 +4,64 @@
 #   tezcatlipoca setup [--fs-root <dir>] [--emacs <command> | --no-emacs]
 #        write Poca's box rows for tezcatl, Xipe Totec and (unless --no-emacs)
 #        Emacs with emacs-vent; run again to change them
-#   tezcatlipoca start [<poca's arguments>]     open Poca
-#   tezcatlipoca check                          what this machine lacks
+#   tezcatlipoca start [<poca's arguments>]     open Poca (not while another
+#                                               user's programs hold the ports)
+#   tezcatlipoca check                          what this machine lacks, and
+#                                               who holds the ports
 #   tezcatlipoca version                        the versions bundled (BUILD)
 set -euo pipefail
 here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 relay="$here/tezcatl/_build/prod/rel/tezcatl_relay/bin/tezcatl_relay"
+
+# The ports the box rows listen on: emacs-vent, tezcatl's pages, the relay, Xipe Totec.
+ports="4000 4001 4100 4200"
+
+# ports_held -- one line "<port> <uid>" a port of $ports that something listens
+# on, read from /proc/net/tcp{,6} (no root needed: the uid column is there for
+# every user's sockets, the process is not). Poca puts what it starts in
+# sessions of their own, so when Poca dies without closing its windows
+# (logging out) they keep running -- and 127.0.0.1 is shared by every user.
+ports_held() {
+  local p hex
+  for p in $ports; do
+    hex="$(printf '%04X' "$p")"
+    # columns: sl local_address rem_address st ... uid (8th); st 0A is LISTEN
+    { cat /proc/net/tcp /proc/net/tcp6 2>/dev/null || true; } \
+      | awk -v hex="$hex" -v port="$p" \
+          '$4 == "0A" { n = split($2, a, ":"); if (a[n] == hex) print port, $8 }'
+  done | sort -u
+}
+
+user_of() { getent passwd "$1" 2>/dev/null | cut -d: -f1 || true; }
+
+# ports_report -- what ports_held found, said for a person; returns 1 when
+# another user holds one (then tezcatl here would talk to that user's
+# programs: their shell, their files, their Emacs)
+ports_report() {
+  local me port uid name others=0 own=0
+  me="$(id -u)"
+  while read -r port uid; do
+    [ -n "$port" ] || continue
+    name="$(user_of "$uid")"; name="${name:-uid $uid}"
+    if [ "$uid" = "$me" ]; then
+      echo "port $port: in use by your own program (a run of tezcatl already started, or one left from a Poca that did not close)"
+      own=1
+    else
+      echo "port $port: held by another user, $name -- tezcatl here would reach $name's programs"
+      others=1
+    fi
+  done < <(ports_held)
+  if [ "$own" = 1 ]; then
+    echo "  Left over? pgrep -u $(id -un) -af '$here/|fg-daemon=tezcatlipoca' shows them; pkill with the same arguments stops them."
+  fi
+  if [ "$others" = 1 ]; then
+    echo "  Programs Poca started keep running when Poca ends without its windows closed (e.g. at logout)."
+    echo "  Another user's programs can be stopped only by that user (log in as them; pgrep -u <them> -af"
+    echo "  'tezcatl|xipe|fg-daemon=tezcatlipoca' shows them, pkill with the same arguments stops them) or by root."
+    return 1
+  fi
+  return 0
+}
 
 case "${1:-}" in
   setup)
@@ -19,6 +71,10 @@ case "${1:-}" in
     ;;
   start)
     shift
+    if ! ports_report >&2; then
+      echo "tezcatlipoca start: not started while another user holds the ports" >&2
+      exit 1
+    fi
     exec "$here/poca/poca" "$@"
     ;;
   check)
@@ -53,6 +109,7 @@ case "${1:-}" in
       fi
     done
     [ "$status" = 0 ] && echo "tezcatlipoca check: the system libraries are there"
+    ports_report || status=1
     command -v rg >/dev/null 2>&1 || echo "not on PATH (optional, for :grep): rg"
     if command -v emacs >/dev/null 2>&1; then
       # emacs-vent needs the websocket package; package.el is what most install it with

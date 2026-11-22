@@ -46,6 +46,12 @@ repository's). The checkouts and builds stay in `_work/` between runs. Their pat
 `__DIR__`, C++'s `__FILE__`), so for a tarball to publish set `TEZCATLIPOCA_WORK` to a directory without personal names in its path
 (e.g. `/var/tmp/tezcatlipoca`); `build.sh` stops when the tarball would hold `$HOME`'s path or a directory named as the user.
 
+**For a tarball that runs widely, build it in Ubuntu 22.04** (glibc 2.35, OpenSSL 3.0: it then runs on Ubuntu 22.04 / 24.04, Debian
+12 and newer; built on Arch it needs Arch's glibc): with podman, `container/build.sh image` once (Erlang/OTP and Elixir as the releases
+are built with, and the libraries libcef.so links against; `container/setup.sh`), then `container/build.sh` runs `build.sh` inside it
+as a user `builder` mapped to you, the checkouts in `_work-22.04/`. Tried 2026-11-23: the tarball passed `check` and served its
+pages, its relay and `xipe version` in Ubuntu 22.04 and Debian 12 (Ubuntu 24.04: `check`'s glibc).
+
 ## Updating
 
 1. Publish tezcatl and push xipe_totec, then sync the without-Nix repositories from them (their `sync/README.md`) and push them.
@@ -53,7 +59,7 @@ repository's). The checkouts and builds stay in `_work/` between runs. Their pat
    `sync/UPSTREAM_TREE`; `TEZCATLIPOCA_ALLOW_LAG=1` builds anyway, not for a release)
 2. Raise `VERSION`, and to the same version the one `xipe version` prints (xipe_totec's `lib/help.exs`, before step 1's sync) and
    the two without-Nix repositories' `mix.exs`; put the new commits in `versions.lock`
-3. `./build.sh`, unpack the tarball somewhere else, `bin/tezcatlipoca check`, `setup`, `start`, and use it: tezcatl, Xipe Totec and
+3. `container/build.sh` (or `./build.sh` for this machine only), unpack the tarball somewhere else, `bin/tezcatlipoca check`, `setup`, `start`, and use it: tezcatl, Xipe Totec and
    Emacs from Poca's box
 4. Commit, tag `v<VERSION>`, and attach the tarball and its `.sha256` to a release
 
